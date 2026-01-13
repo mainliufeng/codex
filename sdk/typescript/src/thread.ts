@@ -91,6 +91,7 @@ export class Thread {
       webSearchEnabled: options?.webSearchEnabled,
       approvalPolicy: options?.approvalPolicy,
       additionalDirectories: options?.additionalDirectories,
+      mcpServers: options?.mcpServers,
     });
     try {
       for await (const item of generator) {

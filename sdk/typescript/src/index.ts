@@ -35,5 +35,10 @@ export type {
   ApprovalMode,
   SandboxMode,
   ModelReasoningEffort,
+  McpServerConfig,
+  McpServerCommonConfig,
+  McpServerStdioConfig,
+  McpServerStreamableHttpConfig,
+  McpServerConfigValue,
 } from "./threadOptions";
 export type { TurnOptions } from "./turnOptions";

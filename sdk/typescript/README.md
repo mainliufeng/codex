@@ -116,6 +116,21 @@ const thread = codex.startThread({
 });
 ```
 
+### Configuring MCP servers
+
+Pass inline MCP server configuration when you create a thread. The SDK forwards these entries to the CLI as `--config mcp_servers.<name>=...`.
+
+```typescript
+const thread = codex.startThread({
+  mcpServers: {
+    gateway: {
+      url: "https://mcp.example.com/stream",
+      bearer_token_env_var: "MCP_GATEWAY_TOKEN",
+    },
+  },
+});
+```
+
 ### Controlling the Codex CLI environment
 
 By default, the Codex CLI inherits the Node.js process environment. Provide the optional `env` parameter when instantiating the

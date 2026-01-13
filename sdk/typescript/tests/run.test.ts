@@ -348,6 +348,45 @@ describe("Codex", () => {
     }
   });
 
+  it("passes mcpServers to exec", async () => {
+    const { url, close } = await startResponsesTestProxy({
+      statusCode: 200,
+      responseBodies: [
+        sse(
+          responseStarted("response_1"),
+          assistantMessage("MCP config set", "item_1"),
+          responseCompleted("response_1"),
+        ),
+      ],
+    });
+
+    const { args: spawnArgs, restore } = codexExecSpy();
+
+    try {
+      const client = new Codex({ codexPathOverride: codexExecPath, baseUrl: url, apiKey: "test" });
+
+      const thread = client.startThread({
+        mcpServers: {
+          gateway: {
+            url: "https://mcp.example.com/stream",
+            bearer_token_env_var: "MCP_GATEWAY_TOKEN",
+          },
+        },
+      });
+      await thread.run("test mcp config");
+
+      const commandArgs = spawnArgs[0];
+      expect(commandArgs).toBeDefined();
+      expectPair(commandArgs, [
+        "--config",
+        'mcp_servers.gateway={bearer_token_env_var="MCP_GATEWAY_TOKEN",url="https://mcp.example.com/stream"}',
+      ]);
+    } finally {
+      restore();
+      await close();
+    }
+  });
+
   it("allows overriding the env passed to the Codex CLI", async () => {
     const { url, close } = await startResponsesTestProxy({
       statusCode: 200,

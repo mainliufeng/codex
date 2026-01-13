@@ -3,7 +3,13 @@ import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 
-import { SandboxMode, ModelReasoningEffort, ApprovalMode } from "./threadOptions";
+import {
+  SandboxMode,
+  ModelReasoningEffort,
+  ApprovalMode,
+  McpServerConfig,
+  McpServerConfigValue,
+} from "./threadOptions";
 
 export type CodexExecArgs = {
   input: string;
@@ -34,6 +40,8 @@ export type CodexExecArgs = {
   webSearchEnabled?: boolean;
   // --config approval_policy
   approvalPolicy?: ApprovalMode;
+  // --config mcp_servers.<name>
+  mcpServers?: Record<string, McpServerConfig>;
 };
 
 const INTERNAL_ORIGINATOR_ENV = "CODEX_INTERNAL_ORIGINATOR_OVERRIDE";
@@ -94,6 +102,10 @@ export class CodexExec {
 
     if (args.approvalPolicy) {
       commandArgs.push("--config", `approval_policy="${args.approvalPolicy}"`);
+    }
+
+    if (args.mcpServers) {
+      appendMcpServersConfig(commandArgs, args.mcpServers);
     }
 
     if (args.images?.length) {
@@ -250,4 +262,60 @@ function findCodexPath() {
   const binaryPath = path.join(archRoot, "codex", codexBinaryName);
 
   return binaryPath;
+}
+
+function appendMcpServersConfig(
+  commandArgs: string[],
+  mcpServers: Record<string, McpServerConfig>,
+) {
+  const entries = Object.entries(mcpServers).sort(([a], [b]) => a.localeCompare(b));
+  for (const [serverName, config] of entries) {
+    if (serverName.includes(".")) {
+      throw new Error(`MCP server name "${serverName}" must not include '.'`);
+    }
+    commandArgs.push("--config", `mcp_servers.${serverName}=${formatTomlValue(config)}`);
+  }
+}
+
+function formatTomlValue(value: McpServerConfigValue | McpServerConfig): string {
+  if (value === undefined || value === null) {
+    throw new Error("MCP server config values must not be null or undefined.");
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(formatTomlValue).join(",")}]`;
+  }
+  switch (typeof value) {
+    case "string":
+      return JSON.stringify(value);
+    case "number":
+      if (!Number.isFinite(value)) {
+        throw new Error("MCP server config numbers must be finite.");
+      }
+      return value.toString();
+    case "boolean":
+      return value ? "true" : "false";
+    case "object":
+      return formatTomlInlineTable(value);
+    default:
+      throw new Error(`Unsupported MCP server config value: ${String(value)}`);
+  }
+}
+
+function formatTomlInlineTable(
+  value: Record<string, McpServerConfigValue> | McpServerConfig,
+): string {
+  const entries = Object.entries(value as Record<string, McpServerConfigValue>).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  if (entries.length === 0) {
+    return "{}";
+  }
+  const serialized = entries.map(
+    ([key, entry]) => `${formatTomlKey(key)}=${formatTomlValue(entry)}`,
+  );
+  return `{${serialized.join(",")}}`;
+}
+
+function formatTomlKey(key: string): string {
+  return /^[A-Za-z0-9_-]+$/.test(key) ? key : JSON.stringify(key);
 }
